@@ -1,0 +1,81 @@
+name: Model Training Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'Model architecture'
+        required: true
+        type: choice
+        options:
+          - resnet50
+          - convnext_base
+          - swin_base_patch4_window7_224
+      epochs:
+        description: 'Number of epochs'
+        required: true
+        default: '10'
+      batch_size:
+        description: 'Batch size'
+        required: true
+        default: '32'
+      gpu_type:
+        description: 'GPU type'
+        required: true
+        type: choice
+        options:
+          - cpu
+          - cuda
+
+jobs:
+  train:
+    name: Train Model
+    runs-on: ${{ github.event.inputs.gpu_type == 'cuda' && 'ubuntu-latest-gpu' || 'ubuntu-latest' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ "${{ github.event.inputs.gpu_type }}" == "cpu" ]; then
+            pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          else
+            pip install torch torchvision
+          fi
+          pip install -r requirements.txt
+
+      - name: Download sample dataset
+        run: |
+          # Download minimal test dataset
+          mkdir -p data/processed/train data/processed/val data/processed/test
+          echo "Using mock data for CI testing"
+
+      - name: Train model
+        run: |
+          python experiments/baseline/train_${{ github.event.inputs.model }}.py \
+            --epochs ${{ github.event.inputs.epochs }} \
+            --batch-size ${{ github.event.inputs.batch_size }} \
+            --device ${{ github.event.inputs.gpu_type }} \
+            --output experiments/checkpoints/ci_test_model.pth
+
+      - name: Upload model checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-checkpoint-${{ github.event.inputs.model }}
+          path: experiments/checkpoints/ci_test_model.pth
+          retention-days: 7
+
+      - name: Upload training logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-logs-${{ github.event.inputs.model }}
+          path: experiments/runs/
+          retention-days: 7

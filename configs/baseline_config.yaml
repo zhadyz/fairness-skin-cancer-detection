@@ -1,0 +1,150 @@
+# Baseline Model Configuration for Skin Cancer Detection
+# Configuration for transfer learning experiments with ResNet50, EfficientNet, and InceptionV3
+
+# Model Configuration
+model:
+  name: "resnet50"  # Options: resnet50, efficientnet_b4, efficientnet_b3, inception_v3
+  num_classes: 7  # HAM10000: 7 classes, ISIC: 8 classes
+  pretrained: true  # Use ImageNet pre-trained weights
+  freeze_backbone: false  # Freeze backbone layers (set to true for initial fine-tuning)
+  dropout: 0.5  # Dropout rate before final classifier
+
+# Training Configuration
+training:
+  epochs: 50
+  batch_size: 32  # Adjust based on GPU memory (16 for large models, 64 for smaller)
+  learning_rate: 0.0001  # 1e-4 is standard for transfer learning
+  weight_decay: 0.01  # L2 regularization
+  optimizer: "adamw"  # Options: adam, adamw
+
+  # Learning rate scheduling
+  scheduler: "cosine_warm"  # Options: cosine_warm, reduce_plateau
+  scheduler_t0: 10  # CosineAnnealing: epochs for first restart
+  scheduler_t_mult: 2  # CosineAnnealing: restart period multiplier
+  scheduler_eta_min: 0.000001  # Minimum learning rate
+
+  # Early stopping
+  early_stopping: true
+  patience: 10  # Stop if no improvement for 10 epochs
+  min_delta: 0.0001  # Minimum change to qualify as improvement
+
+  # Mixed precision training (faster on modern GPUs)
+  use_amp: true
+
+  # Class weights for imbalanced datasets
+  use_class_weights: false  # Set to true if dataset is highly imbalanced
+  class_weights: null  # Will be computed from dataset if use_class_weights=true
+
+  # Validation metric for best model selection
+  validation_metric: "auroc"  # Options: auroc, accuracy, loss
+
+# Data Configuration
+data:
+  dataset: "ham10000"  # Options: ham10000, isic2019, isic2020
+  data_root: "data/HAM10000"  # Path to dataset
+
+  # Data splits
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  random_seed: 42
+
+  # Image preprocessing
+  img_size: 224  # Standard size for most models (299 for InceptionV3)
+  normalize: true
+  mean: [0.485, 0.456, 0.406]  # ImageNet normalization
+  std: [0.229, 0.224, 0.225]
+
+  # Data augmentation (training only)
+  augmentation:
+    enabled: true
+    horizontal_flip: 0.5
+    vertical_flip: 0.5
+    rotation_limit: 20
+    brightness_contrast: 0.2
+    hue_saturation: 0.1
+
+  # Data loading
+  num_workers: 4
+  pin_memory: true
+  shuffle_train: true
+
+# Checkpointing Configuration
+checkpointing:
+  checkpoint_dir: "experiments/baseline/checkpoints"
+  save_best_only: true
+  save_frequency: 5  # Save every N epochs if save_best_only=false
+
+# Logging Configuration
+logging:
+  log_dir: "experiments/baseline/logs"
+  log_frequency: 10  # Log every N batches
+  tensorboard: true
+  wandb: false  # Set to true to enable Weights & Biases logging
+  wandb_project: "skin-cancer-fairness"
+  wandb_entity: null  # Your W&B username
+
+# Fairness Evaluation Configuration
+fairness:
+  enabled: true
+  fst_groups: [1, 2, 3, 4, 5, 6]  # Fitzpatrick skin types
+  metrics:
+    - "auroc_per_fst"
+    - "equal_opportunity_diff"
+    - "expected_calibration_error"
+    - "sensitivity_specificity_per_fst"
+
+  # Evaluation frequency
+  eval_frequency: 5  # Evaluate fairness every N epochs
+
+  # Target class for sensitivity/specificity (melanoma)
+  target_class: "mel"  # Melanoma class label
+
+# Experiment Metadata
+experiment:
+  name: "baseline_resnet50"
+  description: "Baseline ResNet50 model with transfer learning from ImageNet"
+  tags: ["baseline", "resnet50", "transfer-learning"]
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: false  # Set to true for full reproducibility (may reduce performance)
+
+# Hardware Configuration
+hardware:
+  device: "cuda"  # Options: cuda, cpu, mps (for Apple Silicon)
+  gpu_ids: [0]  # List of GPU IDs to use (for multi-GPU training)
+  num_gpus: 1
+
+---
+# Alternative Configuration: EfficientNet B4
+# Uncomment and modify as needed
+
+# model:
+#   name: "efficientnet_b4"
+#   num_classes: 7
+#   pretrained: true
+#   freeze_backbone: false
+#   dropout: 0.4
+#
+# training:
+#   batch_size: 16  # EfficientNet B4 requires more memory
+#   learning_rate: 0.0001
+#
+# data:
+#   img_size: 224  # Can use 380 for native resolution
+
+---
+# Alternative Configuration: InceptionV3
+# Uncomment and modify as needed
+
+# model:
+#   name: "inception_v3"
+#   num_classes: 7
+#   pretrained: true
+#   freeze_backbone: false
+#   dropout: 0.5
+#
+# data:
+#   img_size: 299  # InceptionV3 requires 299x299 input

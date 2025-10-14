@@ -1,0 +1,44 @@
+[run]
+source = src
+omit =
+    */tests/*
+    */venv/*
+    */env/*
+    */.venv/*
+    */__pycache__/*
+    */site-packages/*
+    */dist-packages/*
+    */migrations/*
+    */config.py
+    */setup.py
+
+branch = True
+parallel = True
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    def __str__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+    @abc.abstractmethod
+    class .*\bProtocol\):
+    @overload
+    if 0:
+    if False:
+
+precision = 2
+show_missing = True
+skip_covered = False
+sort = Cover
+
+[html]
+directory = htmlcov
+title = Skin Cancer Detection - Code Coverage Report
+
+[xml]
+output = coverage.xml

@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # Training service with GPU support
+  training:
+    build:
+      context: .
+      target: production
+    image: skin-cancer-classifier:training
+    container_name: skin-cancer-training
+    volumes:
+      - ./data:/app/data
+      - ./experiments:/app/experiments
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CUDA_VISIBLE_DEVICES=0
+      - OMP_NUM_THREADS=4
+      - TORCH_HOME=/app/.cache/torch
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: python experiments/baseline/train_resnet50.py
+    networks:
+      - ml-network
+
+  # Development environment with Jupyter
+  dev:
+    build:
+      context: .
+      target: development
+    image: skin-cancer-classifier:dev
+    container_name: skin-cancer-dev
+    volumes:
+      - .:/app
+      - jupyter-data:/root/.jupyter
+    ports:
+      - "8888:8888"  # Jupyter
+      - "6006:6006"  # TensorBoard
+    environment:
+      - PYTHONUNBUFFERED=1
+      - JUPYTER_ENABLE_LAB=yes
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: >
+      bash -c "jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+      & tensorboard --logdir=/app/experiments/runs --host=0.0.0.0 --port=6006
+      & wait"
+    networks:
+      - ml-network
+
+  # TensorBoard standalone service
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    container_name: skin-cancer-tensorboard
+    volumes:
+      - ./experiments/runs:/logs
+    ports:
+      - "6006:6006"
+    command: tensorboard --logdir=/logs --host=0.0.0.0 --port=6006
+    networks:
+      - ml-network
+
+  # Inference API service
+  inference:
+    build:
+      context: .
+      target: inference
+    image: skin-cancer-classifier:inference
+    container_name: skin-cancer-inference
+    volumes:
+      - ./experiments/checkpoints:/app/experiments/checkpoints:ro
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=/app/experiments/checkpoints/best_model.pth
+      - MAX_BATCH_SIZE=8
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+        limits:
+          cpus: '2'
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+  # CPU-only training for testing
+  training-cpu:
+    build:
+      context: .
+      target: production
+    image: skin-cancer-classifier:training-cpu
+    container_name: skin-cancer-training-cpu
+    volumes:
+      - ./data:/app/data
+      - ./experiments:/app/experiments
+    environment:
+      - PYTHONUNBUFFERED=1
+      - CUDA_VISIBLE_DEVICES=""
+    command: python experiments/baseline/train_resnet50.py --device cpu
+    networks:
+      - ml-network
+
+networks:
+  ml-network:
+    driver: bridge
+
+volumes:
+  jupyter-data:

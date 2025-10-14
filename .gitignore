@@ -56,6 +56,14 @@ models/saved/
 wandb/
 mlruns/
 
+# Experiment tracking
+experiments/runs/*
+experiments/checkpoints/*.pth
+experiments/checkpoints/*.pt
+!experiments/runs/.gitkeep
+!experiments/checkpoints/.gitkeep
+events.out.tfevents.*
+
 # Data (too large for git)
 data/raw/
 data/processed/
@@ -106,3 +114,21 @@ site/
 *.temp
 tmp/
 temp/
+
+# Agent Framework (internal, not for public repo)
+.claude/
+
+# Research papers (not code)
+MDPI.pdf
+*.pdf
+
+# Deployment scripts (internal)
+init_mendicant_bias.py
+
+# Installation logs
+install_log.txt
+*.log
+
+# Coverage reports
+coverage.xml
+htmlcov/
