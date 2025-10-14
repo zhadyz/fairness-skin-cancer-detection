@@ -1,0 +1,49 @@
+# Deep Learning Frameworks
+torch>=2.0.0
+torchvision>=0.15.0
+timm>=0.9.0  # ConvNeXt, Swin Transformer, modern architectures
+
+# Data Science & Analysis
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+scipy>=1.10.0
+
+# Computer Vision
+opencv-python>=4.8.0
+albumentations>=1.3.0
+pillow>=10.0.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.14.0
+
+# Experiment Tracking
+tensorboard>=2.13.0
+wandb>=0.15.0
+
+# Fairness & Bias Mitigation
+fairlearn>=0.9.0
+aif360>=0.5.0  # AI Fairness 360 toolkit
+
+# Medical Imaging (Optional - if using DICOM)
+# pydicom>=2.4.0
+# SimpleITK>=2.2.0
+
+# Utilities
+tqdm>=4.65.0
+pyyaml>=6.0
+python-dotenv>=1.0.0
+hydra-core>=1.3.0  # Configuration management
+
+# Development & Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.7.0
+flake8>=6.0.0
+mypy>=1.4.0
+
+# Optional: Model Interpretability
+# captum>=0.6.0
+# shap>=0.42.0
