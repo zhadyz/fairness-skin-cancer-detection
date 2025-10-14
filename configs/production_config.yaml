@@ -1,0 +1,274 @@
+# Production Configuration for MENDICANT_BIAS Phase 4
+# Framework: MENDICANT_BIAS - Phase 4 Production Hardening
+# Agent: HOLLOWED_EYES
+# Date: 2025-10-14
+
+# Model Configuration
+model:
+  architecture: "hybrid_convnextv2_swin"
+  convnext_variant: "base"
+  swin_variant: "small"
+  num_classes: 7
+  fusion_dim: 768
+  enable_fairdisco: false
+  checkpoint_path: "models/hybrid_model_checkpoint.pth"
+
+# Compression Configuration
+compression:
+  # FairPrune settings
+  pruning:
+    method: "fairprune"
+    target_sparsity: 0.6  # 60% parameters pruned
+    structured: true
+    granularity: "filter"  # filter, channel, head
+    fairness_weight: 0.5  # Balance accuracy vs fairness
+    num_iterations: 10
+    initial_sparsity: 0.1
+    pruning_schedule: "exponential"  # linear, exponential, adaptive
+    importance_method: "magnitude_gradient"
+    gradient_samples: 100
+
+    # Layer selection
+    skip_layers:
+      - "classifier.6"  # Don't prune final layer
+      - "fusion.fusion.0"  # Preserve fusion layers
+    prune_conv: true
+    prune_linear: true
+    prune_attention: false  # Attention is sensitive
+
+    # Fine-tuning after pruning
+    fine_tune_epochs: 5
+    learning_rate: 1.0e-4
+    weight_decay: 1.0e-4
+    early_stopping_patience: 3
+
+  # Quantization settings
+  quantization:
+    precision: "int8"  # fp16, int8, dynamic
+    per_channel: true  # Better accuracy than per-tensor
+    backend: "fbgemm"  # fbgemm (x86 CPU), qnnpack (ARM)
+    calibration_samples: 1000
+    fst_balanced: true  # Ensure FST V-VI representation
+    calibration_method: "minmax"  # minmax, histogram, percentile
+
+    # Layer selection
+    quantize_conv: true
+    quantize_linear: true
+    quantize_attention: false  # Often sensitive
+
+  # ONNX export
+  onnx:
+    opset_version: 17
+    dynamic_axes: true  # Support variable batch size
+    optimize_graph: true
+    validate_numerics: true
+    tolerance: 1.0e-4
+
+# Explainability Configuration
+explainability:
+  # SHAP settings
+  shap:
+    method: "gradshap"  # gradshap, deeplift, gradcam
+    num_samples: 100  # For GradientSHAP
+    num_backgrounds: 50  # Background samples
+    target_fsts: [1, 6]  # Compare FST I vs VI
+    generate_visualizations: true
+
+  # Explanation output
+  output:
+    save_explanations: true
+    explanation_dir: "outputs/explanations"
+    image_format: "png"
+    save_raw_values: true  # Save SHAP values as numpy
+    generate_html_report: true
+
+# Production API Configuration
+api:
+  # Server settings
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  reload: false  # Set true for development
+  timeout: 30
+  log_level: "info"
+
+  # Request handling
+  max_batch_size: 32
+  max_image_size_mb: 10
+  allowed_formats: ["jpg", "jpeg", "png"]
+
+  # Security
+  enable_auth: true
+  api_key_header: "X-API-Key"
+  cors_origins:
+    - "http://localhost:3000"
+    - "https://yourdomain.com"
+  rate_limit: 100  # requests per minute per IP
+
+  # Model serving
+  model:
+    checkpoint_path: "models/hybrid_pruned_quantized.onnx"
+    device: "cpu"  # cpu, cuda
+    precision: "int8"
+    enable_tensorrt: false
+
+  # Inference settings
+  inference:
+    batch_timeout_ms: 100  # Dynamic batching timeout
+    num_workers: 2
+    max_queue_size: 100
+
+  # Monitoring
+  monitoring:
+    enable_metrics: true
+    metrics_port: 9090
+    enable_tracing: false
+    log_predictions: true
+
+# Deployment Configuration
+deployment:
+  # Docker settings
+  docker:
+    base_image: "python:3.10-slim"
+    expose_port: 8000
+    health_check_interval: 30
+    health_check_timeout: 10
+
+  # Resource limits
+  resources:
+    memory_limit: "4GB"
+    cpu_limit: "2"
+    gpu_enabled: false
+
+  # Kubernetes (optional)
+  kubernetes:
+    replicas: 3
+    min_replicas: 1
+    max_replicas: 10
+    target_cpu_utilization: 70
+
+# Data Configuration
+data:
+  # Preprocessing
+  preprocessing:
+    image_size: [224, 224]
+    normalization:
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+
+  # HAM10000 dataset
+  dataset:
+    root_dir: "data/HAM10000"
+    split: "val"  # For calibration
+    use_fst_annotations: true
+
+# Training Configuration (for fine-tuning)
+training:
+  # Optimizer
+  optimizer:
+    type: "adamw"
+    learning_rate: 1.0e-4
+    weight_decay: 1.0e-4
+    betas: [0.9, 0.999]
+
+  # Scheduler
+  scheduler:
+    type: "cosine"
+    T_max: 10
+    eta_min: 1.0e-6
+
+  # Loss weights
+  loss:
+    task_loss_weight: 1.0
+    distill_loss_weight: 0.5
+    fairness_loss_weight: 0.3
+
+  # Regularization
+  regularization:
+    dropout: 0.3
+    label_smoothing: 0.1
+
+# Evaluation Configuration
+evaluation:
+  # Metrics
+  metrics:
+    - "accuracy"
+    - "auroc"
+    - "sensitivity"
+    - "specificity"
+    - "f1_score"
+
+  # Fairness metrics
+  fairness:
+    compute_per_fst: true
+    fst_groups:
+      light: [1, 2, 3]
+      dark: [4, 5, 6]
+    fairness_metrics:
+      - "auroc_gap"
+      - "equalized_odds_difference"
+      - "demographic_parity_difference"
+      - "ece_gap"
+
+  # Thresholds
+  thresholds:
+    max_auroc_gap: 0.05
+    min_sensitivity: 0.95
+    max_ece: 0.08
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/production.log"
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
+
+# Experiment Tracking
+experiment:
+  enable_wandb: false
+  enable_tensorboard: true
+  project_name: "mendicant_bias_production"
+  experiment_name: "phase4_hardening"
+  tags:
+    - "production"
+    - "compression"
+    - "quantization"
+    - "fairness"
+
+# Benchmarking Configuration
+benchmarking:
+  # Compression benchmarks
+  compression:
+    num_samples: 1000
+    batch_sizes: [1, 4, 8, 16, 32]
+    measure_latency: true
+    measure_throughput: true
+    measure_memory: true
+
+  # API benchmarks
+  api:
+    num_requests: 10000
+    concurrent_users: [1, 5, 10, 20, 50]
+    ramp_up_time: 60  # seconds
+    test_duration: 300  # seconds
+    request_timeout: 30
+
+# Production Targets
+targets:
+  # Compression targets
+  model_size_mb: 30  # Max 30MB (from 268MB)
+  inference_cpu_ms: 100  # Max 100ms on CPU
+
+  # Accuracy targets
+  min_auroc: 0.91
+  max_accuracy_loss: 0.02  # vs full model
+  max_auroc_gap: 0.05  # FST I-III vs IV-VI
+
+  # API targets
+  api_throughput_rps: 10  # Min 10 requests/second
+  api_p95_latency_ms: 200  # Max 200ms p95
+  api_p99_latency_ms: 500  # Max 500ms p99
+
+  # Fairness targets
+  max_fairness_degradation: 0.005  # Max 0.5% AUROC gap increase

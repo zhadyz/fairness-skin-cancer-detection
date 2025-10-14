@@ -56,6 +56,27 @@ peft>=0.4.0
 pytorch-fid>=0.3.0
 lpips>=0.1.4
 
-# Optional: Model Interpretability
-# captum>=0.6.0
-# shap>=0.42.0
+# Model Interpretability (Phase 4)
+captum>=0.6.0
+shap>=0.42.0
+
+# Model Compression & Export (Phase 4)
+onnx>=1.14.0
+onnxruntime>=1.15.0
+onnx-simplifier>=0.4.0
+
+# Production API (Phase 4)
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.0.0
+python-multipart>=0.0.6
+
+# Security & Rate Limiting
+slowapi>=0.1.9
+python-jose[cryptography]>=3.3.0
+
+# Monitoring & Logging
+prometheus-client>=0.17.0
+
+# Load Testing
+locust>=2.15.0

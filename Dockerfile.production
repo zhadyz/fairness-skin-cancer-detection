@@ -1,0 +1,50 @@
+# Production Dockerfile for MENDICANT_BIAS API
+# Framework: MENDICANT_BIAS - Phase 4
+# Agent: HOLLOWED_EYES
+# Date: 2025-10-14
+
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies (production only)
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/ ./src/
+COPY api/ ./api/
+COPY configs/ ./configs/
+
+# Create necessary directories
+RUN mkdir -p logs outputs models
+
+# Copy compressed models (placeholder - replace with actual model)
+# COPY models/hybrid_pruned_quantized.onnx ./models/
+
+# Set environment variables
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV API_HOST=0.0.0.0
+ENV API_PORT=8000
+ENV LOG_LEVEL=info
+
+# Expose API port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/health')"
+
+# Run API server
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
