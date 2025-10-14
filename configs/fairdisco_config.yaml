@@ -1,0 +1,195 @@
+# FairDisCo Adversarial Debiasing Configuration
+# Configuration for training FairDisCo model with three-loss system:
+# L_total = L_cls + lambda_adv * L_adv + lambda_con * L_con
+#
+# Framework: MENDICANT_BIAS - Phase 2, Week 5-6
+# Agent: HOLLOWED_EYES
+# Version: 1.0
+# Date: 2025-10-13
+
+# Model Configuration
+model:
+  name: "fairdisco"
+  num_classes: 7  # HAM10000: 7 diagnosis classes
+  num_fst_classes: 6  # FST I-VI (6 skin tone classes)
+  backbone: "resnet50"  # Feature extractor
+  pretrained: true  # Use ImageNet pre-trained weights
+  contrastive_dim: 128  # Dimension of contrastive embeddings
+  projection_hidden_dim: 1024  # Hidden dimension in projection head
+  dropout_cls: 0.3  # Dropout in classification head
+  dropout_disc: [0.3, 0.2]  # Dropout in discriminator (layer 1, layer 2)
+
+# Training Configuration
+training:
+  epochs: 100
+  batch_size: 64  # Minimum 64 for contrastive loss (need enough positive pairs)
+  learning_rate: 0.0001  # 1e-4 (standard for transfer learning)
+  weight_decay: 0.01  # AdamW L2 regularization
+  optimizer: "adamw"
+
+  # Learning rate scheduling
+  scheduler: "cosine_warm"  # CosineAnnealingWarmRestarts
+  scheduler_t0: 20  # Restart every 20 epochs
+  scheduler_t_mult: 2  # Double period after each restart
+  scheduler_eta_min: 0.000001  # Minimum learning rate (1e-6)
+
+  # FairDisCo-specific hyperparameters
+  lambda_adv: 0.3  # Adversarial loss weight
+  lambda_con: 0.2  # Contrastive loss weight
+  temperature: 0.07  # Temperature for contrastive loss (standard from SimCLR)
+
+  # Lambda scheduling (warm-up to prevent instability)
+  use_lambda_schedule: true
+  lambda_schedule_start_epoch: 20  # Start adversarial training after warmup
+  lambda_schedule_end_epoch: 40  # Reach full lambda_adv by this epoch
+  lambda_schedule_start_value: 0.1  # Initial lambda_adv
+  lambda_schedule_end_value: 0.3  # Final lambda_adv
+
+  # Discriminator monitoring
+  monitor_discriminator: true
+  discriminator_target_acc: 0.25  # Target accuracy (near random 1/6 = 0.167)
+  discriminator_acc_tolerance: 0.1  # Acceptable range
+
+  # Loss configuration
+  label_smoothing: 0.1  # Label smoothing for classification loss
+  gradient_clip_norm: 1.0  # Gradient clipping (important for GRL stability)
+
+  # Early stopping
+  early_stopping: true
+  patience: 15  # Stop if no improvement for 15 epochs (longer than baseline)
+  min_delta: 0.0001  # Minimum change to qualify as improvement
+
+  # Mixed precision training (faster on modern GPUs)
+  use_amp: true
+
+  # Validation metric for best model selection
+  validation_metric: "auroc"  # Options: auroc, accuracy, loss
+
+# Data Configuration
+data:
+  dataset: "ham10000"  # Options: ham10000, fitzpatrick17k
+  data_root: "data/HAM10000"  # Path to dataset
+
+  # Data splits
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  random_seed: 42
+
+  # Image preprocessing
+  img_size: 224  # Standard size for ResNet50
+  normalize: true
+  mean: [0.485, 0.456, 0.406]  # ImageNet normalization
+  std: [0.229, 0.224, 0.225]
+
+  # Data augmentation (training only)
+  augmentation:
+    enabled: true
+    horizontal_flip: 0.5
+    vertical_flip: 0.5
+    rotation_limit: 15  # Degrees
+    brightness_contrast: 0.2
+    hue_saturation: 0.2
+    # NOTE: No cutout/mixup (interferes with contrastive learning)
+
+  # Data loading
+  num_workers: 4
+  pin_memory: true
+  shuffle_train: true
+
+  # FST annotations
+  use_fst_annotations: true
+  estimate_fst_if_missing: true  # Use ITA-based estimation
+  fst_csv_path: null  # Path to external FST annotations (optional)
+
+# Checkpointing Configuration
+checkpointing:
+  checkpoint_dir: "experiments/fairdisco/checkpoints"
+  save_best_only: true
+  save_frequency: 10  # Save every N epochs if save_best_only=false
+
+# Logging Configuration
+logging:
+  log_dir: "experiments/fairdisco/logs"
+  log_frequency: 10  # Log every N batches
+  tensorboard: true
+  wandb: false  # Set to true to enable Weights & Biases logging
+  wandb_project: "skin-cancer-fairness"
+  wandb_entity: null  # Your W&B username
+
+# Fairness Evaluation Configuration
+fairness:
+  enabled: true
+  fst_groups: [1, 2, 3, 4, 5, 6]  # Fitzpatrick skin types
+  metrics:
+    - "auroc_per_fst"
+    - "equal_opportunity_diff"
+    - "expected_calibration_error"
+    - "sensitivity_specificity_per_fst"
+    - "demographic_parity_diff"
+
+  # Evaluation frequency
+  eval_frequency: 5  # Evaluate fairness every N epochs
+
+  # Target class for binary metrics (melanoma)
+  target_class: "mel"  # Melanoma class label
+
+# Experiment Metadata
+experiment:
+  name: "fairdisco_ham10000"
+  description: "FairDisCo adversarial debiasing with contrastive learning on HAM10000"
+  tags: ["fairdisco", "fairness", "adversarial", "contrastive", "resnet50"]
+  phase: "phase2_week5-6"
+  agent: "hollowed_eyes"
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: false  # Set to true for full reproducibility (may reduce performance)
+
+# Hardware Configuration
+hardware:
+  device: "cuda"  # Options: cuda, cpu, mps (for Apple Silicon)
+  gpu_ids: [0]  # List of GPU IDs to use
+  num_gpus: 1
+
+# Expected Performance (from research documentation)
+expected_performance:
+  baseline_eod: 0.18  # Without fairness techniques
+  target_eod: 0.06  # 65% reduction with FairDisCo
+  target_auroc_gap: 0.08  # Target gap between FST groups
+  training_time_hours: 25  # On single RTX 3090 (100 epochs, batch 64)
+
+---
+# Alternative Configuration: Higher Lambda (More Aggressive Debiasing)
+# Uncomment and modify as needed if baseline lambda_adv=0.3 is insufficient
+
+# training:
+#   lambda_adv: 0.4  # Increase adversarial strength
+#   lambda_con: 0.25  # Compensate with higher contrastive
+#   lambda_schedule_end_value: 0.4
+
+---
+# Alternative Configuration: Conservative Lambda (Prioritize Accuracy)
+# Uncomment if accuracy drop is too large (>3%)
+
+# training:
+#   lambda_adv: 0.2  # Reduce adversarial strength
+#   lambda_con: 0.15  # Reduce contrastive
+#   lambda_schedule_end_value: 0.2
+
+---
+# Alternative Configuration: Larger Batch Size (More GPU Memory)
+# Uncomment if you have 40GB+ VRAM (A100, etc.)
+
+# training:
+#   batch_size: 128  # Better for contrastive loss
+#   gradient_accumulation_steps: 1
+
+---
+# Alternative Configuration: Smaller Batch Size (Limited GPU Memory)
+# Uncomment if you have <12GB VRAM
+
+# training:
+#   batch_size: 32
+#   gradient_accumulation_steps: 2  # Effective batch size = 64
