@@ -29,6 +29,8 @@ from src.models.resnet_baseline import create_resnet50_model
 from src.training.trainer import Trainer, TrainerConfig
 from src.evaluation.fairness_metrics import FairnessMetrics, evaluate_fairness
 from src.evaluation.visualizations import FairnessVisualizer
+from src.data.ham10000_dataset import HAM10000Dataset, load_splits
+from src.data.preprocessing import get_training_augmentation, get_validation_transform
 
 
 def load_config(config_path: str) -> dict:
@@ -38,17 +40,137 @@ def load_config(config_path: str) -> dict:
     return config
 
 
+def collate_fn(batch):
+    """Custom collate function to handle HAM10000Dataset dictionary output."""
+    images = torch.stack([item['image'] for item in batch])
+    labels = torch.tensor([item['label'] for item in batch])
+    fst_labels = torch.tensor([item['fst'] for item in batch])
+    return images, labels, fst_labels
+
+
+def create_ham10000_dataloaders(config: dict):
+    """
+    Create HAM10000 dataloaders for training, validation, and testing.
+
+    Uses real HAM10000 dataset with FST annotations.
+    """
+    data_config = config['data']
+
+    # Check if HAM10000 data exists
+    data_dir = Path(data_config.get('data_dir', 'data/raw/ham10000'))
+    metadata_path = Path(data_config.get('metadata_path', 'data/metadata/ham10000_fst_estimated.csv'))
+    splits_path = Path(data_config.get('splits_path', 'data/metadata/ham10000_splits.json'))
+
+    if not data_dir.exists():
+        print("\n" + "="*80)
+        print("ERROR: HAM10000 data directory not found!")
+        print(f"Expected location: {data_dir.absolute()}")
+        print("\nTo download HAM10000 dataset:")
+        print("  1. Visit: https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/DBW86T")
+        print("  2. Download HAM10000_images_part_1.zip")
+        print("  3. Download HAM10000_images_part_2.zip")
+        print("  4. Download HAM10000_metadata")
+        print(f"  5. Extract to: {data_dir.absolute()}")
+        print("\nFalling back to dummy data for testing...")
+        print("="*80 + "\n")
+        return create_dummy_dataloaders(config)
+
+    # Load splits
+    if not splits_path.exists():
+        print(f"\nWARNING: Splits file not found at {splits_path}")
+        print("Please generate splits first:")
+        print("  python scripts/generate_ham10000_fst.py")
+        print("  python scripts/create_ham10000_splits.py")
+        print("\nFalling back to dummy data...")
+        return create_dummy_dataloaders(config)
+
+    print(f"\nLoading HAM10000 dataset from {data_dir}")
+    splits = load_splits(str(splits_path))
+
+    # Create transforms
+    img_size = data_config['img_size']
+    train_transform = get_training_augmentation(
+        image_size=img_size,
+        augmentation_strength=data_config.get('augmentation_strength', 'medium')
+    )
+    val_transform = get_validation_transform(image_size=img_size)
+
+    # Create datasets
+    train_dataset = HAM10000Dataset(
+        root_dir=str(data_dir),
+        metadata_path=str(metadata_path),
+        split="train",
+        split_indices=splits['train'],
+        transform=train_transform,
+        use_fst_annotations=True,
+        estimate_fst_if_missing=True,
+    )
+
+    val_dataset = HAM10000Dataset(
+        root_dir=str(data_dir),
+        metadata_path=str(metadata_path),
+        split="val",
+        split_indices=splits['val'],
+        transform=val_transform,
+        use_fst_annotations=True,
+        estimate_fst_if_missing=True,
+    )
+
+    test_dataset = HAM10000Dataset(
+        root_dir=str(data_dir),
+        metadata_path=str(metadata_path),
+        split="test",
+        split_indices=splits['test'],
+        transform=val_transform,
+        use_fst_annotations=True,
+        estimate_fst_if_missing=True,
+    )
+
+    # Create dataloaders
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=config['training']['batch_size'],
+        shuffle=data_config['shuffle_train'],
+        num_workers=data_config.get('num_workers', 4),
+        pin_memory=data_config['pin_memory'],
+        collate_fn=collate_fn,
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=config['training']['batch_size'],
+        shuffle=False,
+        num_workers=data_config.get('num_workers', 4),
+        pin_memory=data_config['pin_memory'],
+        collate_fn=collate_fn,
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=config['training']['batch_size'],
+        shuffle=False,
+        num_workers=data_config.get('num_workers', 4),
+        pin_memory=data_config['pin_memory'],
+        collate_fn=collate_fn,
+    )
+
+    print(f"\nDataset loaded successfully!")
+    print(f"  Train: {len(train_dataset)} samples")
+    print(f"  Val:   {len(val_dataset)} samples")
+    print(f"  Test:  {len(test_dataset)} samples")
+
+    return train_loader, val_loader, test_loader
+
+
 def create_dummy_dataloaders(config: dict):
     """
-    Create dummy dataloaders for testing (replace with actual dataset loading).
-
-    TODO: Replace with actual HAM10000/ISIC dataset loaders when data is available.
+    Create dummy dataloaders for testing (fallback when HAM10000 not available).
     """
     from torch.utils.data import TensorDataset
 
     print("\n" + "="*80)
     print("WARNING: Using dummy data for testing")
-    print("Replace with actual dataset loader (src.data.ham10000_dataset)")
+    print("Real HAM10000 dataset not found - using synthetic data")
     print("="*80 + "\n")
 
     # Dummy data parameters
@@ -71,9 +193,9 @@ def create_dummy_dataloaders(config: dict):
     test_labels = torch.randint(0, num_classes, (num_test,))
     test_fst = torch.randint(1, 7, (num_test,))
 
-    # Create datasets (without FST for training, with FST for evaluation)
-    train_dataset = TensorDataset(train_images, train_labels)
-    val_dataset = TensorDataset(val_images, val_labels)
+    # Create datasets
+    train_dataset = TensorDataset(train_images, train_labels, train_fst)
+    val_dataset = TensorDataset(val_images, val_labels, val_fst)
     test_dataset = TensorDataset(test_images, test_labels, test_fst)
 
     # Create dataloaders
@@ -223,7 +345,7 @@ def main():
 
     # Create dataloaders
     print("Loading dataset...")
-    train_loader, val_loader, test_loader = create_dummy_dataloaders(config)
+    train_loader, val_loader, test_loader = create_ham10000_dataloaders(config)
     print(f"Train batches: {len(train_loader)}")
     print(f"Val batches: {len(val_loader)}")
     print(f"Test batches: {len(test_loader)}\n")

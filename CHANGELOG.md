@@ -54,19 +54,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Framework: MENDICANT_BIAS Multi-Agent System
 - Agents: the_didact (Research), hollowed_eyes (Development), loveless (QA/Security), zhadyz (DevOps)
 
+## [0.2.0] - 2025-10-14
+
+### Added - Phase 1.5: HAM10000 Integration
+- Complete HAM10000 dataset loader (`src/data/ham10000_dataset.py`) - 548 lines
+- FST estimation pipeline using ITA calculation (`scripts/generate_ham10000_fst.py`)
+- Stratified split generation (diagnosis + FST) (`scripts/create_ham10000_splits.py`)
+- Comprehensive dataset verification system (`scripts/verify_ham10000.py`)
+- Automated setup workflow (`scripts/setup_ham10000.py`)
+- HAM10000 integration with baseline training (`experiments/baseline/train_resnet50.py`)
+
+### Added - Phase 2: Fairness Research Complete
+- FairSkin diffusion implementation plan (16,000+ words)
+- FairDisCo adversarial architecture specification (15,000+ words)
+- CIRCLe color-invariant learning methodology (13,000+ words)
+- Open-source code evaluation and license assessment (8,000+ words)
+- Computational cost analysis and ROI comparison (10,000+ words)
+- Total strategic intelligence: 62,000+ words implementation-ready documentation
+
+### Documentation
+- HAM10000 integration guide with API reference (700+ lines)
+- Quick start guide for HAM10000 setup (350+ lines)
+- FairSkin: Architecture, training requirements, quality thresholds, integration strategy
+- FairDisCo: Gradient reversal layer, contrastive loss, hyperparameters, training protocol
+- CIRCLe: Tone transformation methods, regularization loss, StarGAN vs LAB trade-offs
+- Phase 2 roadmap with week-by-week breakdown (Weeks 5-12)
+- Computational costs: 227 GPU hours, 8 weeks human time, $41K budget
+
+### Changed
+- Updated `docs/roadmap.md` with detailed Phase 2 timeline
+- Modified `experiments/baseline/train_resnet50.py` for real dataset loading
+- Fixed typo in `src/data/datasets.py` (BaseDermoscopyDataset)
+- VERSION bumped to 0.2.0
+
+### Performance Expectations
+- Baseline AUROC gap: 15-20% (FST I-III vs V-VI) on HAM10000
+- Phase 2 target: <4% AUROC gap after all interventions
+- FairDisCo expected: 65% EOD reduction (0.18 → 0.06)
+- FairSkin expected: +18-21% FST VI AUROC improvement
+- CIRCLe expected: 3-5% ECE reduction, better calibration
+
+### Infrastructure
+- 8 new Python modules (2,827 lines of production code)
+- 6 comprehensive documentation files (62,000+ words strategic intelligence)
+- Automated HAM10000 setup with verification system
+- Memory persistence to MENDICANT_BIAS framework
+
 ## [Unreleased]
 
-### Planned (Phase 1.5)
-- HAM10000 dataset integration with FST annotations
-- ISIC 2019/2020 dataset integration
-- Additional baseline model experiments (DenseNet, MobileNetV3)
-- Ensemble baseline evaluation
-
-### Planned (Phase 2)
-- FairSkin diffusion-based augmentation implementation
-- FairDisCo adversarial debiasing
-- CIRCLe color-invariant representation learning
-- Comprehensive fairness intervention comparison
+### Planned (Phase 2 Implementation)
+- Week 5-6: FairDisCo adversarial debiasing implementation
+- Week 7-8: CIRCLe color-invariant learning implementation
+- Week 9-11: FairSkin diffusion augmentation (60k synthetic images)
+- Week 12: Combined evaluation and ablation studies
 
 ### Planned (Phase 3)
 - Hybrid ConvNeXtV2-Swin Transformer architecture

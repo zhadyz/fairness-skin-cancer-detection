@@ -27,7 +27,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 
 
-class BaseD ermoscopyDataset(Dataset):
+class BaseDermoscopyDataset(Dataset):
     """
     Base class for dermoscopic image datasets.
 

@@ -64,46 +64,168 @@ Develop a production-grade, fairness-aware AI system for skin cancer detection t
 
 ---
 
-### **Phase 2: Fairness MVP (Weeks 5-10)**
+### **Phase 2: Fairness MVP (Weeks 5-12)**
 
 **Objective**: Implement core fairness techniques, reduce AUROC gap to <8%
 
-**Key Techniques** (Priority Order):
+**Strategic Implementation Order** (ROI-optimized, from THE DIDACT analysis):
 
-1. **Data-Level: FairSkin Diffusion Augmentation**
-   - Train tone-conditioned diffusion model (Stable Diffusion architecture)
-   - Generate 60,000 synthetic images with balanced FST distribution
-   - Quality validation: FID <20, LPIPS <0.1, expert dermatologist review
-   - **Expected Impact**: +18-21% AUROC improvement for FST VI (literature benchmark)
+#### **Week 5-6: FairDisCo Adversarial Debiasing** (Highest ROI)
+**Rationale**: Best EOD reduction (65%), fastest implementation, moderate complexity
 
-2. **Algorithm-Level: FairDisCo Adversarial Debiasing**
-   - Auxiliary discriminator: Predict FST from latent embeddings
-   - Adversarial training: Maximize classification accuracy, minimize FST predictability
-   - Contrastive loss: Pull same-diagnosis, different-FST embeddings together
-   - **Expected Impact**: 65% EOD reduction (Equal Opportunity Difference)
+**Implementation Plan**:
+- Day 1-2: Clone siyi-wind/FairDisCo repository, setup environment (PyTorch 2.1+, CUDA 12.1)
+- Day 3-4: Adapt for HAM10000 + Fitzpatrick17k combined dataset
+- Day 5-7: Implement gradient reversal layer (GRL), verify gradients flow correctly
+- Day 8-10: Implement supervised contrastive loss (temperature 0.07, batch 64)
+- Day 11-12: Integrate into training loop (multi-task loss: classification + adversarial + contrastive)
+- Day 13-14: Train 100 epochs (~25 GPU hours, RTX 3090)
 
-3. **Algorithm-Level: CIRCLe Color-Invariant Learning**
-   - Regularization: Latent embeddings invariant across tone transformations
-   - Prioritize lesion morphology (shape, border) over pixel color
-   - **Expected Impact**: Improved calibration (ECE reduction 3-5%), better OOD generalization
+**Expected Results**:
+- AUROC gap: 20% → 10% (50% reduction)
+- EOD: 0.18 → 0.06 (65% reduction)
+- Accuracy trade-off: -0.5% to -2% (acceptable)
 
-4. **Metadata Fusion**
-   - Attention-based encoder: Integrate FST, age, anatomical site
-   - Late fusion with CNN features
-   - **Expected Impact**: +5-10% AUROC for FST IV-VI (Muffin architecture benchmark)
-
-**Success Criteria**:
-- AUROC gap reduced: <8% (from baseline 15-20%)
-- EOD <0.08 (Equal Opportunity Difference across FST groups)
-- Overall accuracy maintained: >88%
-- Synthetic dataset quality validated: FID <20, expert scores >5/7
+**Key Metrics to Monitor**:
+- Discriminator accuracy: Should decrease from 50-70% (early) → 20-25% (late)
+- If discriminator accuracy >50% after epoch 50: Increase λ_adv (0.3 → 0.4)
 
 **Deliverables**:
-- `src/fairness/fairskin_diffusion.py`: Tone-conditioned diffusion model
-- `src/fairness/fairdisco.py`: Adversarial debiasing implementation
-- `src/fairness/circle.py`: Color-invariant regularization
-- `src/models/metadata_fusion.py`: Attention-based metadata encoder
-- `experiments/fairness_mvp/`: Training scripts + comparative results
+- `src/fairness/gradient_reversal.py`: GRL PyTorch autograd function
+- `src/fairness/fairdisco_model.py`: Full architecture (backbone + discriminator + contrastive)
+- `src/fairness/supervised_contrastive_loss.py`: Contrastive loss implementation
+- `experiments/phase2_week5-6_fairdisco/`: Training scripts, logs, checkpoints
+
+---
+
+#### **Week 7-8: CIRCLe Color-Invariant Learning** (Low Complexity, Fast)
+**Rationale**: Improves calibration (ECE -3-5%), easiest implementation
+
+**Implementation Plan**:
+- Day 1-2: Clone arezou-pakzad/CIRCLe repository, setup environment
+- Day 3-4: Implement simple LAB color transformations (skip StarGAN for Phase 2)
+  - Transform images to FST I and VI (extreme classes)
+  - Pre-compute transformations: 3x dataset size (~48GB → 144GB)
+- Day 5-7: Implement regularization loss (L2 distance between original and transformed embeddings)
+- Day 8-10: Integrate into FairDisCo architecture (add 4th loss term)
+- Day 11-14: Train combined model (FairDisCo + CIRCLe, 100 epochs, ~30 GPU hours)
+
+**Expected Results**:
+- AUROC gap: 10% → 7% (additional 30% reduction)
+- ECE: 0.10 → 0.07 (improved calibration)
+- OOD generalization: +8-12% on unseen FST combinations
+
+**Hyperparameter Tuning**:
+- λ_reg: Start with 0.2, tune [0.1, 0.2, 0.3] if needed
+- Target FST: ["I", "VI"] (extreme classes, most effective)
+- Distance metric: L2 (simpler than cosine for Phase 2)
+
+**Deliverables**:
+- `src/fairness/color_transforms.py`: LAB transformation functions
+- `src/fairness/circle_regularization.py`: Regularization loss
+- `experiments/phase2_week7-8_circle/`: Training scripts, ablation studies
+
+---
+
+#### **Week 9-11: FairSkin Diffusion Augmentation** (Highest Absolute Gain)
+**Rationale**: Largest AUROC improvement (+18-21%), one-time synthetic generation cost
+
+**Implementation Plan**:
+- **Week 9 (Textual Inversion + LoRA Setup)**:
+  - Day 1-2: Clone janet-sw/skin-diff repository, install Hugging Face Diffusers
+  - Day 3-4: Prepare training data (Fitzpatrick17k + DDI, resize 512x512, hair removal)
+  - Day 5: Train textual inversion (2000 steps, ~4 hours)
+    - Learn tokens: `<melanoma-FST-VI>`, `<nevus-FST-I>`, etc.
+  - Day 6-7: Validate: Generate 100 test images from prompts, qualitative review
+
+- **Week 10 (LoRA Training)**:
+  - Day 1-3: Train LoRA adapters (rank 16, alpha 32, 10k steps, ~20 hours)
+  - Day 4-5: Validate: Generate 500 images (all diagnosis × FST combinations)
+  - Day 6-7: Quality metrics: FID <20, LPIPS <0.15, classifier confidence >0.7
+
+- **Week 11 (Batch Generation + Classifier Training)**:
+  - Day 1-3: Generate 60k synthetic images (50-100 GPU hours, parallelizable on 4 GPUs → 12-25 hours)
+    - Balanced FST distribution: FST V-VI 50% (vs <5% in real data)
+    - Quality filtering: Accept if FID <30, LPIPS <0.2, no artifacts
+  - Day 4: Expert review: Sample 500 images, dermatologist rating (target: >5.0/7.0)
+  - Day 5-7: Train classifier on mixed dataset (real + synthetic, FST-dependent weighting)
+    - FST I-III: 20% synthetic, 80% real
+    - FST V-VI: 80% synthetic, 20% real
+
+**Expected Results**:
+- AUROC gap: 7% → 3.5% (achieve <4% Phase 2 target)
+- Synthetic dataset: 60k images, FID <20, expert rating >5.0/7.0
+- EOD: 0.06 → 0.04 (additional 33% reduction)
+
+**Risk Mitigation**:
+- If GAN mode collapse: Increase class diversity loss (λ_diversity = 0.1 → 0.2)
+- If poor quality (FID >30): Increase LoRA rank (16 → 32), more training steps (10k → 20k)
+- If expert rating <5.0: Generate 1.5-2x images, filter more aggressively
+
+**Deliverables**:
+- `data/synthetic/fairskin/`: 60,000 synthetic images (balanced FST)
+- `checkpoints/textual_inversion/`: Learned token embeddings
+- `checkpoints/lora/`: LoRA adapter weights
+- `experiments/phase2_week9-11_fairskin/`: Generation scripts, quality reports
+
+---
+
+#### **Week 12: Integration, Evaluation & Phase 2 Completion**
+
+**Objective**: Train final combined model, comprehensive evaluation, Phase 3 readiness
+
+**Activities**:
+- Day 1-2: Train final model with all three techniques
+  - Loss: L_cls + 0.3×L_adv + 0.2×L_con + 0.2×L_reg
+  - Dataset: 60k synthetic + 16.5k real (Fitzpatrick17k + DDI)
+  - 100 epochs, ~35 GPU hours
+- Day 3-4: Comprehensive fairness evaluation
+  - AUROC per FST (I-VI), overall AUROC
+  - EOD, DPD, Equalized Odds
+  - ECE, calibration curves per FST
+  - Confusion matrices, sensitivity/specificity per FST
+- Day 5: Ablation studies
+  - Baseline (no fairness)
+  - FairDisCo only
+  - FairDisCo + CIRCLe
+  - FairDisCo + CIRCLe + FairSkin (full)
+  - Quantify each technique's contribution
+- Day 6-7: Documentation and handoff
+  - Model card: Dataset composition, subgroup metrics, limitations
+  - Experiment report: Figures, tables, statistical tests
+  - Phase 3 preparation: Hybrid architecture requirements
+
+**Success Criteria** (Phase 2 Targets):
+- AUROC gap: <8% (target: 3.5-4.0%)
+- EOD: <0.08 (target: 0.04-0.05)
+- ECE: <0.10 (target: 0.06-0.08)
+- Overall accuracy: >88% (target: 89-91%)
+- Synthetic quality: FID <20, expert rating >5.0/7.0
+
+**Deliverables**:
+- `models/phase2_final_fairness_mvp.pth`: Final combined model
+- `experiments/phase2_week12_final/`: Complete evaluation results
+- `docs/phase2_results.md`: Comprehensive results report
+- `docs/phase3_requirements.md`: Hybrid architecture specifications
+
+---
+
+**Total Phase 2 Timeline**: 8 weeks (56 days)
+**Total GPU Hours**: ~227 hours (risk-adjusted, see computational_costs.md)
+**Human Time**: 8 weeks full-time equivalent (1 developer)
+
+**Phase 2 Checkpoints**:
+- Week 6: FairDisCo complete (AUROC gap <12%)
+- Week 8: CIRCLe complete (AUROC gap <9%)
+- Week 11: FairSkin complete (AUROC gap <5%)
+- Week 12: Phase 2 MVP complete (AUROC gap <4%, Phase 3 ready)
+
+**Reference Documents** (created by THE DIDACT):
+- `docs/fairskin_implementation_plan.md`: Detailed FairSkin guide
+- `docs/fairdisco_architecture.md`: Complete FairDisCo specifications
+- `docs/circle_implementation.md`: CIRCLe methodology
+- `docs/open_source_fairness_code.md`: Repository evaluation
+- `docs/fairness_computational_costs.md`: Cost analysis and ROI
 
 ---
 
