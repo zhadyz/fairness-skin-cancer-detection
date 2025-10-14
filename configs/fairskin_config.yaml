@@ -1,0 +1,298 @@
+# FairSkin Diffusion Augmentation Configuration
+#
+# Complete configuration for FST-balanced synthetic data generation
+# using Stable Diffusion v1.5 + LoRA fine-tuning on HAM10000.
+#
+# Framework: MENDICANT_BIAS - Phase 2
+# Agent: HOLLOWED_EYES
+# Version: 0.3.0
+# Date: 2025-10-13
+
+# ==================== Stable Diffusion Configuration ====================
+
+stable_diffusion:
+  # Model configuration
+  model_id: "runwayml/stable-diffusion-v1-5"
+  device: "cuda"  # Use "cuda" for GPU, "cpu" for CPU
+  dtype: "float16"  # "float16" (FP16) or "float32" (FP32)
+
+  # Scheduler
+  scheduler_type: "pndm"  # Options: "pndm", "ddim", "ddpm", "dpm"
+
+  # Safety
+  safety_checker: false  # Disable NSFW checker for medical images
+
+  # Memory optimization
+  enable_attention_slicing: true
+  enable_xformers: true  # Requires xformers installation
+
+
+# ==================== LoRA Configuration ====================
+
+lora:
+  # LoRA hyperparameters
+  rank: 16  # LoRA rank (8-32, balance between capacity and efficiency)
+  alpha: 16  # LoRA alpha scaling factor (typically equal to rank)
+  dropout: 0.1  # Dropout for regularization
+
+  # Target modules (U-Net attention layers)
+  target_modules:
+    - "to_q"
+    - "to_k"
+    - "to_v"
+    - "to_out.0"
+
+  # Initialization
+  init_lora_weights: true
+
+
+# ==================== Training Configuration ====================
+
+training:
+  # Training duration
+  num_train_steps: 10000  # Total training steps (5000-10000 recommended)
+  num_epochs: null  # Alternative: specify epochs instead of steps
+
+  # Batch configuration
+  batch_size: 4  # Batch size per GPU (4 recommended for 24GB VRAM)
+  gradient_accumulation_steps: 2  # Effective batch size = batch_size * gradient_accumulation
+
+  # Optimization
+  learning_rate: 0.0001  # 1e-4 recommended for LoRA
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  use_8bit_adam: false  # Requires bitsandbytes library
+
+  # Learning rate scheduler
+  lr_scheduler: "cosine_with_restarts"  # Options: "linear", "cosine", "cosine_with_restarts", "constant"
+  lr_warmup_steps: 500
+  num_cycles: 3  # For cosine_with_restarts
+
+  # Diffusion parameters
+  num_train_timesteps: 1000
+  beta_schedule: "scaled_linear"
+  prediction_type: "epsilon"  # Predict noise
+  snr_gamma: 5.0  # SNR weighting for quality improvement
+
+  # Data augmentation
+  resolution: 512  # Image resolution (SD v1.5 native resolution)
+  center_crop: true
+  random_flip: true
+
+  # Mixed precision
+  mixed_precision: true  # FP16 training
+  gradient_checkpointing: true  # Reduce VRAM usage
+
+  # Logging & checkpointing
+  logging_steps: 100
+  checkpoint_steps: 1000
+  validation_steps: 500
+
+  # Output
+  output_dir: "checkpoints/fairskin_lora"
+
+  # Hardware
+  dataloader_num_workers: 4
+
+
+# ==================== Generation Configuration ====================
+
+generation:
+  # Target FST classes (focus on minority groups)
+  target_fsts: [5, 6]  # FST V and VI (dark skin tones)
+
+  # Generation volume
+  num_images_per_fst: 10000  # 10k images per FST class
+  total_target: 60000  # Total synthetic images (can be split across FSTs)
+
+  # Diagnoses to generate (HAM10000 classes)
+  diagnoses: [0, 1, 2, 3, 4, 5, 6]  # All 7 diagnosis classes
+
+  # Generation parameters
+  num_inference_steps: 50  # Diffusion steps (20=fast, 50=balanced, 100=best)
+  guidance_scale: 7.5  # Classifier-free guidance (7-10 recommended)
+
+  # Prompt engineering
+  prompt_style: "clinical"  # Options: "clinical", "dermoscopic", "medical"
+  add_quality_tokens: true  # Add quality-enhancing tokens
+
+  # Batch generation
+  batch_size: 4
+
+  # Output
+  output_dir: "data/synthetic/fairskin"
+  save_format: "png"  # Lossless compression
+
+  # Quality filtering
+  apply_quality_filter: true
+  quality_thresholds:
+    fid_max: 30.0  # Maximum acceptable FID (20-30)
+    lpips_max: 0.2  # Maximum acceptable LPIPS (0.15-0.2)
+    confidence_min: 0.6  # Minimum classifier confidence (0.6-0.7)
+    brightness_min: 0.1  # Minimum mean brightness
+    brightness_max: 0.9  # Maximum mean brightness
+
+  # Over-generation factor (generate extra for filtering)
+  overgeneration_factor: 1.5  # Generate 50% more, keep best
+
+
+# ==================== Quality Metrics Configuration ====================
+
+quality_metrics:
+  # FID (Fréchet Inception Distance)
+  fid:
+    enabled: true
+    device: "cuda"
+    batch_size: 50
+
+  # LPIPS (Learned Perceptual Image Patch Similarity)
+  lpips:
+    enabled: true
+    network: "alex"  # Options: "alex", "vgg", "squeeze"
+    device: "cuda"
+
+  # Diversity Score
+  diversity:
+    enabled: true
+    min_score: 0.3  # Avoid mode collapse
+
+  # Classifier Confidence
+  classifier:
+    enabled: true
+    model_path: null  # Path to trained classifier (optional)
+    confidence_threshold: 0.6
+
+
+# ==================== Mixed Dataset Configuration ====================
+
+mixed_dataset:
+  # FST-dependent synthetic ratios
+  synthetic_ratio_by_fst:
+    1: 0.2  # FST I: 20% synthetic, 80% real
+    2: 0.2  # FST II: 20% synthetic, 80% real
+    3: 0.3  # FST III: 30% synthetic, 70% real
+    4: 0.5  # FST IV: 50% synthetic, 50% real
+    5: 0.7  # FST V: 70% synthetic, 30% real
+    6: 0.8  # FST VI: 80% synthetic, 20% real
+
+  # Balancing strategy
+  balance_fst: true  # Equal samples per FST
+  target_samples_per_fst: 2000  # If balancing
+
+  # Sampling
+  shuffle: true
+  seed: 42  # For reproducibility
+
+
+# ==================== Data Paths ====================
+
+data:
+  # Real dataset
+  real_data_dir: "data/raw/ham10000"
+  real_metadata: "data/raw/ham10000/HAM10000_metadata.csv"
+
+  # Synthetic dataset
+  synthetic_data_dir: "data/synthetic/fairskin"
+
+  # Splits
+  splits_file: "data/processed/ham10000_splits.json"
+
+  # FST annotations
+  fst_annotations: null  # Optional: path to FST CSV
+
+
+# ==================== Experiment Configuration ====================
+
+experiment:
+  # Experiment name
+  name: "fairskin_v0.3.0"
+
+  # Random seed
+  seed: 42
+
+  # Logging
+  log_dir: "logs/fairskin"
+  tensorboard: true
+  wandb: false  # Optional: Weights & Biases integration
+  wandb_project: "mendicant-bias-fairskin"
+
+  # Checkpointing
+  save_total_limit: 5  # Keep last 5 checkpoints
+
+  # Evaluation
+  eval_frequency: 1000  # Evaluate every N steps
+  eval_samples: 500  # Number of validation samples
+
+
+# ==================== Hardware Configuration ====================
+
+hardware:
+  # GPU configuration
+  gpu_ids: [0]  # Use GPU 0 (can specify multiple for DDP)
+  num_gpus: 1
+
+  # Memory
+  max_vram_gb: 24  # RTX 3090 / RTX 4090 / A100
+
+  # Performance
+  cudnn_benchmark: true
+  cudnn_deterministic: false
+
+
+# ==================== Integration with FairDisCo + CIRCLe ====================
+
+fairness_integration:
+  # Use with FairDisCo adversarial debiasing
+  use_fairdisco: true
+  fairdisco_lambda: 1.0  # Adversarial loss weight
+
+  # Use with CIRCLe color-invariant learning
+  use_circle: true
+  circle_lambda: 0.5  # Color-invariance loss weight
+
+  # Combined training
+  joint_training: true
+  synthetic_flag_in_batch: true  # Pass is_synthetic flag to trainer
+
+
+# ==================== Success Criteria ====================
+
+success_criteria:
+  # Quality metrics
+  fid_threshold: 20.0  # Target FID <20
+  lpips_threshold: 0.15  # Target LPIPS <0.15
+  diversity_threshold: 0.3  # Target diversity >0.3
+
+  # Fairness metrics (after training with synthetic data)
+  auroc_gap_reduction: 0.15  # Target: reduce gap by 15% absolute
+  fst_vi_auroc_improvement: 0.18  # Target: +18% AUROC for FST VI
+  eod_reduction: 0.30  # Target: reduce EOD by 30%
+
+  # Expert validation
+  expert_rating_min: 5.0  # Out of 7.0
+  expert_acceptance_rate: 0.90  # 90% of images rated ≥4
+
+
+# ==================== Notes ====================
+
+# Expected Training Time (RTX 3090):
+# - LoRA training: 10-20 GPU hours (10,000 steps)
+# - Synthetic generation: 50-100 GPU hours (60,000 images at 1.2 img/min)
+# - Quality filtering: 2-4 hours (FID/LPIPS computation)
+# - Total: ~70-130 GPU hours
+
+# Expected Performance (from literature):
+# - FID: 16-20 (HAM10000 test set)
+# - LPIPS: 0.10-0.15 (vs real images)
+# - FST VI AUROC improvement: +18-21% absolute
+# - Overall fairness: 60-70% AUROC gap reduction (with FairDisCo+CIRCLe)
+
+# Memory Requirements:
+# - LoRA training: 16-20 GB VRAM (with gradient checkpointing)
+# - Synthetic generation: 8-12 GB VRAM (batch_size=4, FP16)
+# - Recommended: RTX 3090 (24GB) or A100 (40GB/80GB)
+
+# Storage Requirements:
+# - Synthetic images: ~47 GB (60k × 512×512×3 × PNG compression)
+# - Checkpoints: ~5 GB (LoRA weights + optimizer state)
+# - Total: ~55 GB
