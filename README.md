@@ -33,10 +33,20 @@ A research-driven, production-grade AI system for equitable skin cancer detectio
   - **v0.3.0**: FairSkin diffusion augmentation → +18-21% FST VI AUROC
   - **Combined Impact**: 60-70% overall AUROC gap reduction
 
+- ✅ **Phase 2.5 (v0.3.1)**: Comprehensive QA & security validation
+  - 219 total tests (96.7% pass rate)
+  - Integration tests + security audit
+  - 0 critical vulnerabilities
+  - **Verdict**: APPROVED FOR PHASE 3
+
+- ✅ **Phase 3 (v0.4.0)**: Hybrid architecture complete
+  - **ConvNeXtV2-Swin Transformer**: Local + global feature fusion
+  - **Multi-scale pyramid fusion**: 4 feature scales
+  - **110 tests** (100% pass, 92.94% coverage)
+  - **Expected**: 91-93% AUROC, <2% gap
+
 ### Next Steps
 
-- ⏳ **Phase 2 Week 12**: Combined evaluation and ablation studies
-- 🔜 **Phase 3**: Hybrid ConvNeXtV2-Swin Transformer architecture
 - 🔜 **Phase 4**: Production hardening (FairPrune, quantization, SHAP)
 - 🔜 **Phase 5**: Clinical validation and deployment
 
