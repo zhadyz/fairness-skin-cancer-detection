@@ -1,0 +1,238 @@
+# CIRCLe Configuration: Color-Invariant Representation Learning
+# Configuration for training CIRCLe model with four-loss system:
+# L_total = L_cls + lambda_adv*L_adv + lambda_con*L_con + lambda_reg*L_reg
+#
+# Framework: MENDICANT_BIAS - Phase 2, Week 7-8
+# Agent: HOLLOWED_EYES
+# Version: 1.0
+# Date: 2025-10-13
+
+# Model Configuration
+model:
+  name: "circle"
+  num_classes: 7  # HAM10000: 7 diagnosis classes
+  num_fst_classes: 6  # FST I-VI (6 skin tone classes)
+  backbone: "resnet50"  # Feature extractor
+  pretrained: true  # Use ImageNet pre-trained weights
+  contrastive_dim: 128  # Dimension of contrastive embeddings
+  projection_hidden_dim: 1024  # Hidden dimension in projection head
+  dropout_cls: 0.3  # Dropout in classification head
+  dropout_disc: [0.3, 0.2]  # Dropout in discriminator (layer 1, layer 2)
+
+  # CIRCLe-specific parameters
+  use_fairdisco: true  # Build on FairDisCo architecture
+  lambda_reg: 0.2  # CIRCLe regularization weight
+  target_fsts: [1, 6]  # Transform to FST I (very light) and VI (very dark)
+  use_multi_target: true  # Use multi-target regularization
+  distance_metric: "l2"  # Distance metric for regularization (l2, cosine, l1)
+
+# Color Transformation Configuration
+color_transforms:
+  enabled: true
+  method: "lab"  # LAB color space transformations (Phase 2)
+  cache_transforms: false  # Pre-compute transformations (not implemented yet)
+  imagenet_normalized: true  # Input images are ImageNet normalized
+
+# Training Configuration
+training:
+  epochs: 100
+  batch_size: 64  # Minimum 64 for contrastive loss
+  learning_rate: 0.0001  # 1e-4 (standard for transfer learning)
+  weight_decay: 0.0001  # Reduced from 0.01 (CIRCLe recommendation)
+  optimizer: "adamw"
+
+  # Learning rate scheduling
+  scheduler: "cosine_warm"  # CosineAnnealingWarmRestarts
+  scheduler_t0: 20  # Restart every 20 epochs
+  scheduler_t_mult: 2  # Double period after each restart
+  scheduler_eta_min: 0.000001  # Minimum learning rate (1e-6)
+
+  # Four loss weights
+  lambda_cls: 1.0  # Classification (always 1.0)
+  lambda_adv: 0.3  # Adversarial debiasing (FairDisCo)
+  lambda_con: 0.2  # Contrastive learning (FairDisCo)
+  lambda_reg: 0.2  # CIRCLe regularization (NEW)
+  temperature: 0.07  # Temperature for contrastive loss
+
+  # Lambda scheduling for FairDisCo losses
+  use_lambda_schedule: true
+  lambda_schedule_start_epoch: 20  # Start adversarial training after warmup
+  lambda_schedule_end_epoch: 40  # Reach full lambda_adv by this epoch
+  lambda_schedule_start_value: 0.1  # Initial lambda_adv
+  lambda_schedule_end_value: 0.3  # Final lambda_adv
+
+  # Lambda scheduling for CIRCLe regularization (NEW)
+  use_lambda_reg_schedule: true
+  lambda_reg_schedule_start_epoch: 30  # Start after FairDisCo stabilizes
+  lambda_reg_schedule_end_epoch: 60  # Reach full lambda_reg by this epoch
+  lambda_reg_schedule_start_value: 0.1  # Initial lambda_reg
+  lambda_reg_schedule_end_value: 0.2  # Final lambda_reg
+
+  # Discriminator monitoring (inherited from FairDisCo)
+  monitor_discriminator: true
+  discriminator_target_acc: 0.25  # Target accuracy (near random 1/6 = 0.167)
+  discriminator_acc_tolerance: 0.1  # Acceptable range
+
+  # Tone-invariance monitoring (NEW)
+  monitor_tone_invariance: true
+  tone_invariance_metric: "l2"  # Metric for tone-invariance (l2, cosine)
+
+  # Loss configuration
+  label_smoothing: 0.1  # Label smoothing for classification loss
+  gradient_clip_norm: 1.0  # Gradient clipping (important for stability)
+
+  # Early stopping
+  early_stopping: true
+  patience: 15  # Stop if no improvement for 15 epochs
+  min_delta: 0.0001  # Minimum change to qualify as improvement
+
+  # Mixed precision training
+  use_amp: true
+
+  # Validation metric for best model selection
+  validation_metric: "auroc"  # Options: auroc, accuracy, loss
+
+# Data Configuration
+data:
+  dataset: "ham10000"  # Options: ham10000, fitzpatrick17k
+  data_root: "data/HAM10000"  # Path to dataset
+
+  # Data splits
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+  random_seed: 42
+
+  # Image preprocessing
+  img_size: 224  # Standard size for ResNet50
+  normalize: true
+  mean: [0.485, 0.456, 0.406]  # ImageNet normalization
+  std: [0.229, 0.224, 0.225]
+
+  # Data augmentation (training only)
+  augmentation:
+    enabled: true
+    horizontal_flip: 0.5
+    vertical_flip: 0.5
+    rotation_limit: 15  # Degrees
+    brightness_contrast: 0.2
+    hue_saturation: 0.2
+    # NOTE: No cutout/mixup (interferes with contrastive learning)
+
+  # Data loading
+  num_workers: 4
+  pin_memory: true
+  shuffle_train: true
+
+  # FST annotations
+  use_fst_annotations: true
+  estimate_fst_if_missing: true  # Use ITA-based estimation
+  fst_csv_path: null  # Path to external FST annotations (optional)
+
+# Checkpointing Configuration
+checkpointing:
+  checkpoint_dir: "experiments/circle/checkpoints"
+  save_best_only: true
+  save_frequency: 10  # Save every N epochs if save_best_only=false
+  load_fairdisco_checkpoint: null  # Path to FairDisCo checkpoint (optional)
+
+# Logging Configuration
+logging:
+  log_dir: "experiments/circle/logs"
+  log_frequency: 10  # Log every N batches
+  tensorboard: true
+  wandb: false  # Set to true to enable Weights & Biases logging
+  wandb_project: "skin-cancer-fairness"
+  wandb_entity: null  # Your W&B username
+
+# Fairness Evaluation Configuration
+fairness:
+  enabled: true
+  fst_groups: [1, 2, 3, 4, 5, 6]  # Fitzpatrick skin types
+  metrics:
+    - "auroc_per_fst"
+    - "equal_opportunity_diff"
+    - "expected_calibration_error"
+    - "sensitivity_specificity_per_fst"
+    - "demographic_parity_diff"
+    - "tone_invariance"  # NEW: CIRCLe-specific metric
+
+  # Evaluation frequency
+  eval_frequency: 5  # Evaluate fairness every N epochs
+
+  # Target class for binary metrics (melanoma)
+  target_class: "mel"  # Melanoma class label
+
+# Experiment Metadata
+experiment:
+  name: "circle_ham10000"
+  description: "CIRCLe color-invariant learning with FairDisCo on HAM10000"
+  tags: ["circle", "fairness", "adversarial", "contrastive", "color-invariant", "resnet50"]
+  phase: "phase2_week7-8"
+  agent: "hollowed_eyes"
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: false  # Set to true for full reproducibility (may reduce performance)
+
+# Hardware Configuration
+hardware:
+  device: "cuda"  # Options: cuda, cpu, mps (for Apple Silicon)
+  gpu_ids: [0]  # List of GPU IDs to use
+  num_gpus: 1
+
+# Expected Performance (from research documentation)
+expected_performance:
+  baseline_auroc_gap: 0.08  # FairDisCo performance (after v0.2.1)
+  target_auroc_gap: 0.04  # 33% further reduction with CIRCLe
+  ece_improvement: 0.03  # 3-5% ECE reduction
+  fst_vi_auroc_improvement: 0.03  # +2-4% AUROC for FST VI
+  training_time_hours: 30  # On single RTX 3090 (100 epochs, batch 64 with transforms)
+  overhead_vs_fairdisco: 1.15  # 15% longer training time due to color transforms
+
+---
+# Alternative Configuration: Higher Lambda_reg (More Aggressive Tone-Invariance)
+# Uncomment if baseline lambda_reg=0.2 provides insufficient tone-invariance
+
+# training:
+#   lambda_reg: 0.3  # Increase regularization strength
+#   lambda_reg_schedule_end_value: 0.3
+
+---
+# Alternative Configuration: Conservative Lambda_reg (Prioritize Accuracy)
+# Uncomment if accuracy drop is too large (>2%)
+
+# training:
+#   lambda_reg: 0.15  # Reduce regularization strength
+#   lambda_reg_schedule_end_value: 0.15
+
+---
+# Alternative Configuration: Single-Target Regularization
+# Uncomment to use single-target FST transformation (faster, less robust)
+
+# model:
+#   target_fsts: [1]  # Only transform to FST I
+#   use_multi_target: false
+
+---
+# Alternative Configuration: Initialize from FairDisCo
+# Uncomment to start from pre-trained FairDisCo model
+
+# checkpointing:
+#   load_fairdisco_checkpoint: "experiments/fairdisco/checkpoints/fairdisco_best.pth"
+
+# training:
+#   epochs: 50  # Fewer epochs needed when fine-tuning
+#   learning_rate: 0.00005  # Lower LR for fine-tuning
+
+---
+# Alternative Configuration: Extreme FST Span
+# Uncomment to regularize across all 6 FST classes (slower, more robust)
+
+# model:
+#   target_fsts: [1, 2, 3, 4, 5, 6]  # Transform to all FSTs
+#   use_multi_target: true
+
+# training:
+#   batch_size: 32  # Reduce batch size due to 6x transformations
