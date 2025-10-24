@@ -1,0 +1,41 @@
+# FastAPI Production API Dependencies
+# MENDICANT_BIAS - Phase 4
+
+# Core API Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+pydantic==2.5.3
+
+# Rate Limiting
+slowapi==0.1.9
+
+# Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Image Processing
+Pillow>=10.0.0
+opencv-python>=4.8.0
+
+# Scientific Computing
+numpy>=1.24.0
+scipy>=1.11.0
+
+# Explainability (Optional)
+captum>=0.6.0
+shap>=0.43.0
+
+# Visualization (Optional)
+matplotlib>=3.7.0
+
+# ONNX Runtime (Optional)
+onnxruntime>=1.16.0
+# onnxruntime-gpu>=1.16.0  # Uncomment for GPU support
+
+# Monitoring (Optional)
+prometheus-client>=0.19.0
+
+# Development
+pytest>=7.4.0
+requests>=2.31.0

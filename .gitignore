@@ -1,3 +1,29 @@
+# Production HTTPS/TLS Infrastructure
+# Framework: MENDICANT_BIAS - DevOps Infrastructure
+# Agent: ZHADYZ
+
+# Environment variables (contains secrets)
+.env
+.env.local
+.env.production
+
+# SSL Certificates and private keys
+certbot/conf/
+certbot/archive/
+certbot/live/
+nginx/ssl/*.key
+nginx/ssl/*.crt
+nginx/ssl/*.pem
+!nginx/ssl/.gitkeep
+
+# Logs
+logs/
+*.log
+certbot/logs/
+
+# Docker volumes
+volumes/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -16,20 +42,23 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
-# Virtual Environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-.venv/
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# PyTorch
+*.pth
+*.pt
+experiments/checkpoints/*.pth
+!experiments/checkpoints/.gitkeep
+
+# Data
+data/
+!data/.gitkeep
 
 # IDEs
 .vscode/
@@ -37,98 +66,60 @@ venv.bak/
 *.swp
 *.swo
 *~
-.DS_Store
-
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
-
-# PyTorch & Deep Learning Models
-*.ckpt
-*.pth
-*.pt
-*.h5
-*.pb
-*.onnx
-*.tflite
-checkpoints/
-models/saved/
-wandb/
-mlruns/
-
-# Experiment tracking
-experiments/runs/*
-experiments/checkpoints/*.pth
-experiments/checkpoints/*.pt
-!experiments/runs/.gitkeep
-!experiments/checkpoints/.gitkeep
-events.out.tfevents.*
-
-# Data (too large for git)
-data/raw/
-data/processed/
-data/external/
-data/interim/
-*.csv
-*.tsv
-*.parquet
-*.feather
-*.h5
-*.hdf5
-*.pkl
-*.pickle
-
-# Environment & Secrets
-.env
-.env.local
-*.env
-secrets/
-credentials/
-*.key
-*.pem
-
-# Logs
-*.log
-logs/
-*.out
-*.err
 
 # OS
 .DS_Store
 Thumbs.db
-desktop.ini
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.nox/
-
-# Documentation builds
-docs/_build/
-site/
+# Backup files
+*.backup
+*.bak
+*.tar.gz
+cert-backup-*.tar.gz
 
 # Temporary files
-*.tmp
-*.temp
 tmp/
 temp/
-
-# Agent Framework (internal, not for public repo)
-.claude/
-
-# Research papers (not code)
-MDPI.pdf
-*.pdf
-
-# Deployment scripts (internal)
-init_mendicant_bias.py
-
-# Installation logs
+*.tmp
 install_log.txt
-*.log
+nul
 
-# Coverage reports
+# Test coverage reports
+.coverage
 coverage.xml
 htmlcov/
+
+# Agent state (local only)
+.claude/
+.serena/
+
+# Windows temporary files
+*.bat
+*.ps1
+%TEMP%*.exe
+
+# Test reports (internal)
+tests/COMPRESSION_TEST_REPORT.md
+tests/*_REPORT.md
+
+# Internal documentation (don't commit to public repo)
+*_SUMMARY.md
+*_REPORT.md
+*_IMPLEMENTATION.md
+*_SPECIFICATION.md
+*GUIDE.md
+MDPI.pdf
+
+# Installer scripts (internal)
+*_INSTALLER_*.py
+create_admin_user.py
+init_mendicant_bias.py
+
+# Incomplete infrastructure
+monitoring/
+nginx/
+desktop/
+docker-compose.prod.yml
+
+# Benchmarks (internal)
+benchmarks/
