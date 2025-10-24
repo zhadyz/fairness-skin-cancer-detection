@@ -1,0 +1,119 @@
+site_name: Fairness in Skin Cancer Detection
+site_url: https://research.onyxlab.ai/fairness/
+site_author: Jasmin Flores, Abdul Bari
+site_description: Research-driven AI system for equitable dermatological diagnosis across all skin tones
+
+repo_name: zhadyz/fairness-skin-cancer-detection
+repo_url: https://github.com/zhadyz/fairness-skin-cancer-detection
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Dark mode only - no toggle
+    scheme: slate
+    primary: black
+    accent: blue
+  font:
+    text: Inter
+    code: SF Mono
+  logo: assets/logo.png
+  favicon: assets/favicon.ico
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+extra_css:
+  - stylesheets/custom.css
+
+extra_javascript:
+  - javascripts/custom.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/zhadyz/fairness-skin-cancer-detection
+    - icon: fontawesome/solid/envelope
+      link: mailto:abdul.bari8019@coyote.csusb.edu
+  analytics:
+    provider: google
+    property: !ENV GOOGLE_ANALYTICS_KEY
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - def_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - tags
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Quick Start: quickstart.md
+      - Environment Setup: environment_setup.md
+      - Dataset Access: dataset_access_log.md
+      - HAM10000 Integration: ham10000_integration.md
+  - Architecture:
+      - System Overview: architecture.md
+      - FairDisCo Implementation: fairdisco_architecture.md
+      - CIRCLe Implementation: circle_implementation.md
+      - FairSkin Implementation Plan: fairskin_implementation_plan.md
+  - Training & Experiments:
+      - Training Guides:
+          - FairDisCo Training: fairdisco_training_guide.md
+          - CIRCLe Training: circle_training_guide.md
+          - FairSkin Usage: fairskin_usage_guide.md
+      - Experiment Tracking: experiment_tracking.md
+      - Baseline Results: baseline_results.md
+  - Technical Guides:
+      - Docker Guide: docker_guide.md
+      - Testing Guide: testing_guide.md
+      - Code Quality Standards: code_quality_standards.md
+      - FST Annotation Protocol: fst_annotation_protocol.md
+  - Research & Innovation:
+      - Synthetic Augmentation: synthetic_augmentation.md
+      - Open Source Fairness Code: open_source_fairness_code.md
+      - Fairness Computational Costs: fairness_computational_costs.md
+  - Production:
+      - Phase 4 Production Hardening: phase4_production_hardening.md
+      - Implementation Roadmap: roadmap.md
+  - About:
+      - Authors & Acknowledgments: about/authors.md
+      - License: about/license.md
+      - Citation: about/citation.md
